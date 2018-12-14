@@ -54,10 +54,22 @@
   "Trim special characters in string S."
   (org-snooze-left-trim-special-chars (org-snooze-right-trim-special-chars s)))
 
+(defun org-snooze-trim-state-chars (s)
+  "Trim state characters in string S.
+State characters are: TODO, DONE, NEXT, HOLD, WAITING."
+  (let ((state-list '("TODO" "DONE" "NEXT" "HOLD" "WAITING")))
+    (dolist (state state-list)
+      (save-match-data
+        (if (string-match (concat state " ") s)
+            (setq s (replace-match "" t t s))
+          s)))
+    s))
+
 (defun org-snooze-parse-line-to-search (line)
   "Parse line content LINE to searchable text."
   (format "file:%s::%s" (buffer-file-name)
-          (org-link-escape (org-snooze-trim-special-chars line))))
+          (org-link-escape (org-snooze-trim-state-chars
+                            (org-snooze-trim-special-chars line)))))
 
 (defun org-snooze-refresh-agenda-appt ()
   "Refresh agenda list and appt."
