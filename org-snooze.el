@@ -1,4 +1,5 @@
 ;;; org-snooze.el --- Snooze your code, doc and feed
+;; -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2018 Bill Xue <github.com/xueeinstein>
 ;; Author: Bill Xue
@@ -16,9 +17,16 @@
 ;;; Code:
 (require 'org-agenda)
 
-(defvar org-snooze-records-file
-  (expand-file-name "~/.snooze.org")
-  "The org file where to store the snoozed items.")
+(defgroup org-snooze nil
+  "Extension to snooze your code, doc and feed."
+  :group 'org)
+
+(defcustom org-snooze-records-file
+  (expand-file-name ".snooze.org" user-emacs-directory)
+  "The org file where to store the snoozed items."
+  :type 'string
+  :group 'org-snooze
+  :safe #'stringp)
 
 (defvar org-snooze-records-file-title "Snoozed"
   "The title of org file which stores the snoozed items.")
@@ -30,7 +38,7 @@
   "The default time of early tomorrow.")
 
 (defun org-snooze-strip-text-properties (txt)
-  "Strip text TXT propertiese."
+  "Strip text TXT properties."
   (set-text-properties 0 (length txt) nil txt)
   txt)
 
@@ -78,6 +86,7 @@ State characters are: TODO, DONE, NEXT, HOLD, WAITING."
   (org-agenda-to-appt)
   (org-agenda-quit))
 
+;;;###autoload
 (defun org-snooze ()
   "Main function to snooze current line and pick time."
   (interactive)
@@ -116,8 +125,7 @@ State characters are: TODO, DONE, NEXT, HOLD, WAITING."
     ;; END -- modify snooze records file
 
     ;; add to agenda files
-    (unless (member org-snooze-records-file org-agenda-files)
-      (add-to-list 'org-agenda-files org-snooze-records-file))
+    (add-to-list 'org-agenda-files org-snooze-records-file)
 
     ;; update appt-time-msg-list
     (appt-activate 1)
