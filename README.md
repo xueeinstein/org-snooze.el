@@ -1,6 +1,10 @@
 # org-snooze.el
 Snooze your code, doc, feed in Emacs
 
+## Demo
+
+![org-snooze demo](demo.gif)
+
 ## Installation
 
 The package can be installed via MELPA. The package name is **org-snooze**.
