@@ -67,9 +67,8 @@ State characters are: TODO, DONE, NEXT, HOLD, WAITING."
   (let ((state-list '("TODO" "DONE" "NEXT" "HOLD" "WAITING")))
     (dolist (state state-list)
       (save-match-data
-        (if (string-match (concat state " ") s)
-            (setq s (replace-match "" t t s))
-          s)))
+        (when (string-match (concat state " ") s)
+          (setq s (replace-match "" t t s)))))
     s))
 
 (defun org-snooze-parse-line-to-search (line)
