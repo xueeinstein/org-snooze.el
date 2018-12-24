@@ -32,16 +32,19 @@
 (defvar org-snooze-records-file-title "Snoozed"
   "The title of org file which stores the snoozed items.")
 
+(defvar org-snooze-search-link-max-length 100
+  "The max length of a searchable org link that is parsed from a raw text line.")
+
 ;; ===================================
 ;; Implementation for `org-snooze'
 ;; ===================================
 
-(defun org-snooze-strip-text-properties (txt)
+(defun org-snooze--strip-text-properties (txt)
   "Strip text TXT properties."
   (set-text-properties 0 (length txt) nil txt)
   txt)
 
-(defun org-snooze-left-trim-special-chars (s)
+(defun org-snooze--left-trim-special-chars (s)
   "Left trim special characters in string S."
   (declare (pure t) (side-effect-free t))
   (save-match-data
@@ -49,7 +52,7 @@
         (replace-match "" t t s)
       s)))
 
-(defun org-snooze-right-trim-special-chars (s)
+(defun org-snooze--right-trim-special-chars (s)
   "Right trim special characters in string S."
   (declare (pure t) (side-effect-free t))
   (save-match-data
@@ -57,11 +60,11 @@
         (replace-match "" t t s)
       s)))
 
-(defun org-snooze-trim-special-chars (s)
+(defun org-snooze--trim-special-chars (s)
   "Trim special characters in string S."
-  (org-snooze-left-trim-special-chars (org-snooze-right-trim-special-chars s)))
+  (org-snooze--left-trim-special-chars (org-snooze--right-trim-special-chars s)))
 
-(defun org-snooze-trim-state-chars (s)
+(defun org-snooze--trim-state-chars (s)
   "Trim state characters in string S.
 State characters are: TODO, DONE, NEXT, HOLD, WAITING."
   (let ((state-list '("TODO" "DONE" "NEXT" "HOLD" "WAITING")))
@@ -71,66 +74,91 @@ State characters are: TODO, DONE, NEXT, HOLD, WAITING."
           (setq s (replace-match "" t t s)))))
     s))
 
-(defun org-snooze-parse-line-to-search (line)
-  "Parse line content LINE to searchable text."
-  (format "file:%s::%s" (buffer-file-name)
-          (org-link-escape (org-snooze-trim-state-chars
-                            (org-snooze-trim-special-chars line)))))
+(defun org-snooze--parse-line-to-search (line)
+  "Parse line content LINE to searchable text.
+The length of return searchable link is less than `org-snooze-search-link-max-length'."
+  (let* ((min-length (min (length line) org-snooze-search-link-max-length))
+         (short-line (cl-subseq line 0 min-length)))
+    (format "file:%s::%s" (buffer-file-name)
+            (org-link-escape (org-snooze--trim-state-chars
+                              (org-snooze--trim-special-chars short-line))))))
 
-(defun org-snooze-refresh-agenda-appt ()
+(defun org-snooze--refresh-agenda-appt ()
   "Refresh agenda list and appt."
   (org-agenda-list)
   (run-with-timer 2 nil 'org-agenda-redo)
   (org-agenda-to-appt)
   (org-agenda-quit))
 
+(defun org-snooze--add-to-record-file (filename search-link alert-time)
+  "Add new snoozed item to record file `org-snooze-records-file'.
+The information of an item includes FILENAME, SEARCH-LINK and ALERT-TIME.
+The function fist checks whether record file exists and creates one if needed."
+  (with-temp-buffer
+    (when (file-exists-p org-snooze-records-file)
+      (insert-file-contents org-snooze-records-file))
+    (org-mode)
+
+    ;; insert title if not find
+    (goto-char (point-min))
+    (unless (re-search-forward (concat "^\\* " org-snooze-records-file-title) nil t)
+      (beginning-of-line)
+      (org-insert-heading)
+      (insert org-snooze-records-file-title)
+      (goto-char (point-min))
+      (end-of-line))
+
+    ;; insert new item as a subheading
+    (org-insert-todo-subheading t)
+    (insert (format "check snoozed %s" filename))
+    (org-deadline "" alert-time)
+    (insert (format " [[[%s][link]]]" search-link))
+    (end-of-line)
+
+    (write-region nil nil org-snooze-records-file)))
+
+(defun org-snooze--elfeed-entry-id-to-search-link (id)
+  "Convert elfeed entry ID to searchable org link."
+  (format "elfeed:%s#%s" (car id) (cdr id)))
+
 ;;;###autoload
 (defun org-snooze ()
   "Main function to snooze current line and pick time."
   (interactive)
   (let* ((this-file (buffer-file-name))
-         (line (org-snooze-strip-text-properties (thing-at-point 'line)))
-         (search (org-snooze-parse-line-to-search line))
+         (line (org-snooze--strip-text-properties (thing-at-point 'line)))
+         (search (org-snooze--parse-line-to-search line))
          (time (org-read-date)) ;; TODO: support to select quick time, like "early tomorrow"
          (dir (file-name-directory org-snooze-records-file)))
 
     (unless (file-exists-p dir)
       (make-directory t))
 
-    ;; BEGIN -- modify snooze records file
-    (with-temp-buffer
-      (when (file-exists-p org-snooze-records-file)
-        (insert-file-contents org-snooze-records-file))
-      (org-mode)
+    (when (and (not this-file) (equal major-mode 'elfeed-show-mode))
+      ;; it is in elfeed-show buffer where `this-file' is nil
+      (message "Log: %s" major-mode)
+      (setq this-file (funcall 'elfeed-entry-title
+                               (symbol-value 'elfeed-show-entry)))
+      (setq search (org-snooze--elfeed-entry-id-to-search-link
+                    (funcall 'elfeed-entry-id
+                             (symbol-value 'elfeed-show-entry)))))
 
-      ;; insert title if not find
-      (goto-char (point-min))
-      (unless (re-search-forward (concat "^\\* " org-snooze-records-file-title) nil t)
-        (beginning-of-line)
-        (org-insert-heading)
-        (insert org-snooze-records-file-title)
-        (goto-char (point-min))
-        (end-of-line))
+    (if this-file
+        (progn
+          ;; add to record file
+          (org-snooze--add-to-record-file this-file search time)
 
-      ;; insert new item as a subheading
-      (org-insert-todo-subheading t)
-      (insert (format "check snoozed %s" this-file))
-      (org-deadline "" time)
-      (insert (format " [[[%s][link]]]" search))
-      (end-of-line)
+          ;; add to agenda files
+          (add-to-list 'org-agenda-files org-snooze-records-file)
 
-      (write-region nil nil org-snooze-records-file))
-    ;; END -- modify snooze records file
+          ;; update appt-time-msg-list
+          (appt-activate 1)
+          ;;; "idle" means record file is writen
+          (run-with-idle-timer 2 nil 'org-snooze--refresh-agenda-appt)
 
-    ;; add to agenda files
-    (add-to-list 'org-agenda-files org-snooze-records-file)
-
-    ;; update appt-time-msg-list
-    (appt-activate 1)
-    (run-with-idle-timer 2 nil 'org-snooze-refresh-agenda-appt) ;; "idle" means record file is writen
-
-    ;; notify success
-    (message "Snoozed %s to %s" search time)))
+          ;; notify success
+          (message "Snoozed %s to %s" this-file time))
+      (message "Current buffer is not supported by org-snooze"))))
 
 ;; ===================================
 ;; Implementation for `org-snooze-pop'
