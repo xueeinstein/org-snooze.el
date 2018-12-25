@@ -6,6 +6,7 @@
 ;; URL: https://github.com/xueeinstein/org-snooze.el
 ;; Created: 2018
 ;; Version: 0.0.1
+;; Package-Requires: ((emacs "24.4"))
 ;; Keywords: extensions
 
 ;;; Commentary:
@@ -44,25 +45,9 @@
   (set-text-properties 0 (length txt) nil txt)
   txt)
 
-(defun org-snooze--left-trim-special-chars (s)
-  "Left trim special characters in string S."
-  (declare (pure t) (side-effect-free t))
-  (save-match-data
-    (if (string-match "\\`[^a-zA-Z]+" s)
-        (replace-match "" t t s)
-      s)))
-
-(defun org-snooze--right-trim-special-chars (s)
-  "Right trim special characters in string S."
-  (declare (pure t) (side-effect-free t))
-  (save-match-data
-    (if (string-match "[^a-zA-Z]+\\'" s)
-        (replace-match "" t t s)
-      s)))
-
 (defun org-snooze--trim-special-chars (s)
   "Trim special characters in string S."
-  (org-snooze--left-trim-special-chars (org-snooze--right-trim-special-chars s)))
+  (string-trim s "\\`[^a-zA-Z]+" "[^a-zA-Z]+\\'"))
 
 (defun org-snooze--trim-state-chars (s)
   "Trim state characters in string S.
