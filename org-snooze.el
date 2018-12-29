@@ -4,7 +4,7 @@
 ;; Author: Bill Xue
 ;; URL: https://github.com/xueeinstein/org-snooze.el
 ;; Created: 2018
-;; Version: 0.0.1
+;; Version: 0.1
 ;; Package-Requires: ((emacs "24.4"))
 ;; Keywords: extensions
 

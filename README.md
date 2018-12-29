@@ -1,4 +1,6 @@
 # org-snooze.el
+[![MELPA](https://melpa.org/packages/org-snooze-badge.svg)](https://melpa.org/#/org-snooze)
+
 Snooze your code, doc, feed in Emacs
 
 ## Demo
