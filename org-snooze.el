@@ -1,5 +1,4 @@
-;;; org-snooze.el --- Snooze your code, doc and feed
-;; -*- lexical-binding: t -*-
+;;; org-snooze.el --- Snooze your code, doc and feed -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2018 Bill Xue <github.com/xueeinstein>
 ;; Author: Bill Xue
@@ -52,12 +51,12 @@
 (defun org-snooze--trim-state-chars (s)
   "Trim state characters in string S.
 State characters are: TODO, DONE, NEXT, HOLD, WAITING."
-  (let ((state-list '("TODO" "DONE" "NEXT" "HOLD" "WAITING")))
-    (dolist (state state-list)
-      (save-match-data
-        (when (string-match (concat state " ") s)
-          (setq s (replace-match "" t t s)))))
-    s))
+  (let* ((state-list '("TODO" "DONE" "NEXT" "HOLD" "WAITING"))
+         (pattern (regexp-opt (mapcar #'(lambda (x) (concat x " ")) state-list))))
+    (save-match-data
+      (if (string-match pattern s)
+          (replace-match "" t t s)
+        s))))
 
 (defun org-snooze--parse-line-to-search (line)
   "Parse line content LINE to searchable text.
